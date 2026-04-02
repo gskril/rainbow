@@ -76,7 +76,6 @@
     "@coinbase/mobile-wallet-protocol-host": "0.1.7",
     "@domir/react-native-measure-text": "0.1.8",
     "@ensdomains/address-encoder": "0.2.16",
-    "@ensdomains/eth-ens-namehash": "2.0.15",
     "@ethersproject/abi": "5.8.0",
     "@ethersproject/abstract-provider": "5.8.0",
     "@ethersproject/abstract-signer": "5.8.0",

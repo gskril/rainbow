@@ -1,5 +1,5 @@
 import { formatsByName } from '@ensdomains/address-encoder';
-import { hash } from '@ensdomains/eth-ens-namehash';
+import { namehash } from 'viem';
 import { BigNumber, type BigNumberish } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { type Signer } from '@ethersproject/abstract-signer';
@@ -393,12 +393,12 @@ const getAvailable = async (name: string, contract?: Contract): Promise<boolean>
 
 const getNameExpires = async (name: string): Promise<string> => {
   const contract = await getENSBaseRegistrarImplementationContract();
-  return contract.nameExpires(labelhash(name));
+  return contract.nameExpires(labelnamehash(name));
 };
 
 const getNameOwner = async (name: string): Promise<string> => {
   const contract = await getENSRegistryContract();
-  return contract.owner(hash(name));
+  return contract.owner(namehash(name));
 };
 
 const getRentPrice = async (name: string, duration: number, contract?: Contract): Promise<any> => {
@@ -408,7 +408,7 @@ const getRentPrice = async (name: string, duration: number, contract?: Contract)
 
 const setupMulticallRecords = (name: string, records: ENSRegistrationRecords, resolverInstance: Contract): string[] => {
   const resolver = resolverInstance.interface;
-  const namehash = hash(name);
+  const namehash = namehash(name);
 
   const data = [];
   // ens associated address
@@ -534,7 +534,7 @@ const getENSExecutionDetails = async ({
     case ENSRegistrationTransactionType.SET_ADDR: {
       if (!name || !records || !records?.coinAddress?.[0]) throw new Error('Bad arguments for setAddr');
       const record = records?.coinAddress[0];
-      const namehash = hash(name);
+      const namehash = namehash(name);
       const coinType = formatsByName[record.key].coinType;
       args = [namehash, coinType, record.address];
       contract = await getENSPublicResolverContract(wallet, resolverAddress);
@@ -550,7 +550,7 @@ const getENSExecutionDetails = async ({
     case ENSRegistrationTransactionType.SET_TEXT: {
       if (!name || !records || !records?.text?.[0]) throw new Error('Bad arguments for setText');
       const record = records?.text[0];
-      const namehash = hash(name);
+      const namehash = namehash(name);
       args = [namehash, record.key, record.value];
       contract = await getENSPublicResolverContract(wallet, resolverAddress);
       break;
