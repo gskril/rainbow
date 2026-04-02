@@ -16,20 +16,32 @@ export const isValidEmail = (email: any) =>
     /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
   );
 
+/**
+ * @desc Check if a string looks like an ENS name (any dotted name that isn't
+ *       an Unstoppable Domain). This is intentionally broad to support
+ *       non-.eth names resolved via CCIP-Read (e.g. .cb.id, .argent.xyz).
+ */
 export const isENSAddressFormat = (address: string | undefined) => {
   'worklet';
   const parts = !!address && address.split('.');
 
-  if (
-    !parts ||
-    parts.length === 1 ||
-    !parts[parts.length - 1] ||
-    parts[parts.length - 1].toLowerCase() !== 'eth' ||
-    supportedUnstoppableDomains.includes(parts[parts.length - 1].toLowerCase())
-  ) {
+  if (!parts || parts.length === 1 || !parts[parts.length - 1]) {
+    return false;
+  }
+  if (supportedUnstoppableDomains.includes(parts[parts.length - 1].toLowerCase())) {
     return false;
   }
   return true;
+};
+
+/**
+ * @desc Strict check for .eth TLD names specifically. Use this when you need
+ *       to identify ENS NFT registrations (only .eth names are NFTs).
+ */
+export const isEthDotEthName = (name: string | undefined) => {
+  'worklet';
+  if (!name) return false;
+  return name.toLowerCase().endsWith('.eth');
 };
 
 export const isUnstoppableAddressFormat = (address: string) => {

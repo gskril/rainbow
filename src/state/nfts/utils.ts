@@ -11,7 +11,7 @@ import isLowerCaseMatch from '@/utils/isLowerCaseMatch';
 import { ENS_NFT_CONTRACT_ADDRESS } from '@/features/ens/references';
 import type { UniqueAsset } from '@/entities/uniqueAssets';
 import { fetchNFTData, type NFTData, nftsQueryKey } from '@/resources/nfts';
-import { isENSAddressFormat } from '@/helpers/validators';
+import { isEthDotEthName } from '@/helpers/validators';
 
 export function isDataComplete(tokens: string[]) {
   if (!tokens.length) return true;
@@ -54,7 +54,7 @@ export async function migrateTokens(accountAddress: string, tokens: string[]): P
   if (!data.nfts.length) return null;
 
   for (const token of tokens) {
-    const isENS = isENSAddressFormat(token);
+    const isENS = isEthDotEthName(token);
     if (isENS) {
       const uniqueId = matchEnsNameToUniqueId(token, data.nfts);
       if (!uniqueId) {

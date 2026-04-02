@@ -5,7 +5,7 @@ import { Text } from '@/design-system';
 import Routes from '@/navigation/routesNames';
 import { openInBrowser } from '@/utils/openInBrowser';
 
-const ENS_REGEX = /[^\s]+.eth/g;
+const ENS_REGEX = /[^\s]+\.eth/g;
 
 export default function RecordHyperlink({ value }: { value: string }) {
   const { goBack, navigate } = useNavigation();
