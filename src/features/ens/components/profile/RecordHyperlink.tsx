@@ -4,14 +4,13 @@ import ButtonPressAnimation from '@/components/animations/ButtonPressAnimation';
 import { Text } from '@/design-system';
 import Routes from '@/navigation/routesNames';
 import { openInBrowser } from '@/utils/openInBrowser';
-
-const ENS_REGEX = /[^\s]+\.eth/g;
+import { isENSAddressFormat } from '@/helpers/validators';
 
 export default function RecordHyperlink({ value }: { value: string }) {
   const { goBack, navigate } = useNavigation();
 
   const navigateToProfile = useCallback(() => {
-    if (value.match(ENS_REGEX)) {
+    if (isENSAddressFormat(value)) {
       goBack();
       navigate(Routes.PROFILE_SHEET, {
         address: value,
