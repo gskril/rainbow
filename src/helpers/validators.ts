@@ -1,7 +1,7 @@
 import { isValidAddress } from 'ethereumjs-util';
-import { getProvider, isHexStringIgnorePrefix, isValidMnemonic, resolveUnstoppableDomain } from '@/handlers/web3';
+import { getPublicClient, isHexStringIgnorePrefix, isValidMnemonic, resolveUnstoppableDomain } from '@/handlers/web3';
 import { sanitizeSeedPhrase } from '@/utils/formatters';
-import { ChainId } from '@/state/backendNetworks/types';
+import { getEnsAddress } from 'viem/ens';
 
 // Currently supported Top Level Domains from Unstoppable Domains
 const supportedUnstoppableDomains = ['888', 'bitcoin', 'blockchain', 'coin', 'crypto', 'dao', 'nft', 'wallet', 'x', 'zil'];
@@ -67,10 +67,9 @@ export const checkIsValidAddressOrDomainFormat = (address: any) => {
  * @return {Boolean}
  */
 export const checkIsValidAddressOrDomain = async (address: any) => {
-  const provider = getProvider({ chainId: ChainId.mainnet });
   if (isENSAddressFormat(address)) {
     try {
-      const resolvedAddress = await provider.resolveName(address);
+      const resolvedAddress = await getEnsAddress(getPublicClient(), { name: address });
       return !!resolvedAddress;
     } catch (error) {
       return false;

@@ -11,7 +11,6 @@ export enum ENSRapActionType {
   renewENS = 'renewENS',
   setAddrENS = 'setAddrENS',
   reclaimENS = 'reclaimENS',
-  setContenthashENS = 'setContenthashENS',
   setTextENS = 'setTextENS',
   setNameENS = 'setNameENS',
   setRecordsENS = 'setRecordsENS',

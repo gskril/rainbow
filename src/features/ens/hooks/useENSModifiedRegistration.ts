@@ -79,7 +79,7 @@ export default function useENSModifiedRegistration({
     enabled: fetchEnabled,
   });
   const {
-    data: { coinAddresses: fetchedCoinAddresses, contenthash: fetchedContenthash, records: fetchedRecords } = {},
+    data: { coinAddresses: fetchedCoinAddresses, records: fetchedRecords } = {},
     isSuccess: isRecordsSuccess,
   } = useENSRecords(name, {
     enabled: fetchEnabled,
@@ -90,13 +90,12 @@ export default function useENSModifiedRegistration({
   useEffect(() => {
     if (setInitialRecordsWhenInEditMode && mode === REGISTRATION_MODES.EDIT && isSuccess) {
       const initialRecords = {
-        contenthash: fetchedContenthash,
         ...fetchedRecords,
         ...fetchedCoinAddresses,
       } as Records;
       dispatch(ensRedux.setInitialRecords(initialRecords));
     }
-  }, [dispatch, mode, fetchedCoinAddresses, fetchedRecords, isSuccess, setInitialRecordsWhenInEditMode, fetchedContenthash]);
+  }, [dispatch, mode, fetchedCoinAddresses, fetchedRecords, isSuccess, setInitialRecordsWhenInEditMode]);
 
   // Derive the records that should be added or removed from the profile
   // (these should be used for SET_TEXT txns instead of `records` to save

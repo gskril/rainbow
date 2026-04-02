@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { Records } from '../types/registration';
-import { fetchCoinAddresses, fetchContenthash, fetchRecords } from '../utils/handlers';
+import { fetchCoinAddresses, fetchRecords } from '../utils/handlers';
 import { getENSData, saveENSData } from '../utils/localStorage';
 import { type ENS_RECORDS } from '../utils/helpers';
 import { queryClient, type QueryConfigDeprecated, type UseQueryData } from '@/react-query';
@@ -19,7 +19,6 @@ export async function fetchENSRecords(
 ) {
   const cachedRecords: {
     coinAddresses: { [key in ENS_RECORDS]: string };
-    contenthash?: string;
     records: Partial<Records>;
   } | null = await getENSData('records', name);
 
@@ -27,12 +26,11 @@ export async function fetchENSRecords(
     queryClient.setQueryData(ensRecordsQueryKey({ name, supportedOnly }), cachedRecords);
     if (cacheFirst) return cachedRecords;
   }
-  const [records, coinAddresses, contenthash] = await Promise.all([
+  const [records, coinAddresses] = await Promise.all([
     fetchRecords(name, { supportedOnly }),
     fetchCoinAddresses(name, { supportedOnly }),
-    fetchContenthash(name),
   ]);
-  const data = { coinAddresses, contenthash, records };
+  const data = { coinAddresses, records };
   saveENSData('records', name, data);
   return data;
 }

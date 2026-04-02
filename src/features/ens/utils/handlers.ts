@@ -1,6 +1,5 @@
 import { formatsByCoinType, formatsByName } from '@ensdomains/address-encoder';
 import { getAddress } from '@ethersproject/address';
-import { type Resolver } from '@ethersproject/providers';
 import { type Duration, sub } from 'date-fns';
 import { isValidAddress, isZeroAddress } from 'ethereumjs-util';
 import { BigNumber } from '@ethersproject/bignumber';
@@ -10,7 +9,7 @@ import { prefetchENSCover } from '../hooks/useENSCover';
 import { prefetchENSRecords } from '../hooks/useENSRecords';
 import { type ENSActionParameters, ENSRapActionType } from '../raps/common';
 import { getENSData, getNameFromLabelhash, saveENSData } from './localStorage';
-import { estimateGasWithPadding, getProvider } from '@/handlers/web3';
+import { estimateGasWithPadding, getProvider, getPublicClient } from '@/handlers/web3';
 import { AssetType } from '@/entities/assetTypes';
 import type { ENSRegistrationRecords, Records } from '../types/registration';
 import type { UniqueAsset } from '@/entities/uniqueAssets';
@@ -30,6 +29,7 @@ import store from '@/redux/store';
 import { logger, RainbowError } from '@/logger';
 import { ChainId, Network } from '@/state/backendNetworks/types';
 import { type Address } from 'viem';
+import { getEnsAddress, getEnsName, getEnsResolver, getEnsText } from 'viem/ens';
 import { NftTokenType } from '@/graphql/__generated__/arc';
 
 const DUMMY_RECORDS = {
@@ -318,11 +318,10 @@ export const fetchRecords = async (ensName: string, { supportedOnly = true }: { 
   const data = response.domains[0] || {};
   const rawRecordKeys = data.resolver?.texts || [];
 
-  const provider = getProvider({ chainId: ChainId.mainnet });
-  const resolver = await provider.getResolver(ensName);
+  const client = getPublicClient({ chainId: ChainId.mainnet });
   const supportedRecords = Object.values(ENS_RECORDS);
   const recordKeys = (rawRecordKeys as ENS_RECORDS[]).filter(key => (supportedOnly ? supportedRecords.includes(key) : true));
-  const recordValues = await Promise.all(recordKeys.map((key: string) => resolver?.getText(key)));
+  const recordValues = await Promise.all(recordKeys.map((key: string) => getEnsText(client, { name: ensName, key })));
   const records = recordKeys.reduce((records, key, i) => {
     return {
       ...records,
@@ -340,8 +339,7 @@ export const fetchCoinAddresses = async (
   const response = await ensClient.getCoinTypesByName({ name: ensName });
   const data = response.domains[0] || {};
   const supportedRecords = Object.values(ENS_RECORDS);
-  const provider = getProvider({ chainId: ChainId.mainnet });
-  const resolver = await provider.getResolver(ensName);
+  const client = getPublicClient({ chainId: ChainId.mainnet });
   const rawCoinTypes: number[] = data.resolver?.coinTypes || [];
   const rawCoinTypesNames: string[] = rawCoinTypes.map(type => formatsByCoinType[type].name);
   const coinTypes: number[] =
@@ -350,15 +348,13 @@ export const fetchCoinAddresses = async (
       .map(name => formatsByName[name].coinType) || [];
 
   const coinAddressValues = await Promise.all(
-    coinTypes
-      .map(async (coinType: number) => {
-        try {
-          return await resolver?.getAddress(coinType);
-        } catch (err) {
-          return undefined;
-        }
-      })
-      .filter(Boolean)
+    coinTypes.map(async (coinType: number) => {
+      try {
+        return await getEnsAddress(client, { name: ensName, coinType: BigInt(coinType) });
+      } catch (err) {
+        return undefined;
+      }
+    })
   );
   const coinAddresses: { [key in ENS_RECORDS]: string } = coinTypes.reduce(
     (coinAddresses, coinType, i) => {
@@ -372,12 +368,6 @@ export const fetchCoinAddresses = async (
   return coinAddresses;
 };
 
-export const fetchContenthash = async (ensName: string) => {
-  const provider = getProvider({ chainId: ChainId.mainnet });
-  const resolver = await provider.getResolver(ensName);
-  const contenthash = await resolver?.getContentHash();
-  return contenthash;
-};
 
 export const fetchOwner = async (ensName: string) => {
   const ownerAddress = await getNameOwner(ensName);
@@ -420,11 +410,8 @@ export const fetchRegistration = async (ensName: string) => {
 };
 
 export const fetchPrimary = async (ensName: string) => {
-  const provider = getProvider({ chainId: ChainId.mainnet });
-  const address = await provider.resolveName(ensName);
-  return {
-    address,
-  };
+  const address = await getEnsAddress(getPublicClient({ chainId: ChainId.mainnet }), { name: ensName });
+  return { address };
 };
 
 export const fetchAccountPrimary = async (accountAddress: string) => {
@@ -529,21 +516,6 @@ export const estimateENSSetAddressGasLimit = async ({
     type: ENSRegistrationTransactionType.SET_ADDR,
   });
 
-export const estimateENSSetContenthashGasLimit = async ({
-  name,
-  records,
-  ownerAddress,
-}: {
-  name: string;
-  ownerAddress?: string;
-  records: ENSRegistrationRecords;
-}) =>
-  estimateENSTransactionGasLimit({
-    name,
-    ownerAddress,
-    records,
-    type: ENSRegistrationTransactionType.SET_CONTENTHASH,
-  });
 
 export const estimateENSSetTextGasLimit = async ({
   name,
@@ -741,15 +713,6 @@ export const estimateENSSetRecordsGasLimit = async ({
           })
         );
         break;
-      case ENSRegistrationTransactionType.SET_CONTENTHASH:
-        promises.push(
-          estimateENSSetContenthashGasLimit({
-            name,
-            ownerAddress,
-            records: ensRegistrationRecords,
-          })
-        );
-        break;
       default:
     }
   }
@@ -770,7 +733,6 @@ export const estimateENSSetRecordsGasLimit = async ({
 export const formatRecordsForTransaction = (records?: Records): ENSRegistrationRecords => {
   const coinAddress = [] as { key: string; address: string }[];
   const text = [] as { key: string; value: string }[];
-  let contenthash = null;
   const ensAssociatedAddress = null;
   records &&
     Object.entries(records).forEach(([key, value]) => {
@@ -807,31 +769,24 @@ export const formatRecordsForTransaction = (records?: Records): ENSRegistrationR
             coinAddress.push({ address: value, key });
           }
           return;
-        case ENS_RECORDS.contenthash:
-          if (value || value === '') {
-            contenthash = value;
-          }
-          return;
       }
     });
-  return { coinAddress, contenthash, ensAssociatedAddress, text };
+  return { coinAddress, ensAssociatedAddress, text };
 };
 
 export const recordsForTransactionAreValid = (registrationRecords: ENSRegistrationRecords) => {
-  const { coinAddress, contenthash, ensAssociatedAddress, text } = registrationRecords;
-  if (!coinAddress?.length && typeof contenthash !== 'string' && !ensAssociatedAddress && !text?.length) {
+  const { coinAddress, ensAssociatedAddress, text } = registrationRecords;
+  if (!coinAddress?.length && !ensAssociatedAddress && !text?.length) {
     return false;
   }
   return true;
 };
 
 export const getTransactionTypeForRecords = (registrationRecords: ENSRegistrationRecords) => {
-  const { coinAddress, contenthash, ensAssociatedAddress, text } = registrationRecords;
+  const { coinAddress, ensAssociatedAddress, text } = registrationRecords;
 
-  if (ensAssociatedAddress || (text?.length || 0) + (coinAddress?.length || 0) + (typeof contenthash === 'string' ? 1 : 0) > 1) {
+  if (ensAssociatedAddress || (text?.length || 0) + (coinAddress?.length || 0) > 1) {
     return ENSRegistrationTransactionType.MULTICALL;
-  } else if (typeof contenthash === 'string') {
-    return ENSRegistrationTransactionType.SET_CONTENTHASH;
   } else if (text?.length) {
     return ENSRegistrationTransactionType.SET_TEXT;
   } else if (coinAddress?.length) {
@@ -849,8 +804,6 @@ export const getRapActionTypeForTxType = (txType: ENSRegistrationTransactionType
       return ENSRapActionType.setAddrENS;
     case ENSRegistrationTransactionType.SET_TEXT:
       return ENSRapActionType.setTextENS;
-    case ENSRegistrationTransactionType.SET_CONTENTHASH:
-      return ENSRapActionType.setContenthashENS;
     default:
       return null;
   }
@@ -858,21 +811,18 @@ export const getRapActionTypeForTxType = (txType: ENSRegistrationTransactionType
 
 export const fetchReverseRecord = async (address: string) => {
   try {
-    const checksumAddress = getAddress(address);
-    const provider = getProvider({ chainId: ChainId.mainnet });
-    const reverseRecord = await provider.lookupAddress(checksumAddress);
+    const checksumAddress = getAddress(address) as Address;
+    const reverseRecord = await getEnsName(getPublicClient({ chainId: ChainId.mainnet }), { address: checksumAddress });
     return reverseRecord ?? '';
   } catch (e) {
     return '';
   }
 };
 
-export const fetchResolver = async (ensName: string) => {
+export const fetchResolver = async (ensName: string): Promise<Address | null> => {
   try {
-    const provider = getProvider({ chainId: ChainId.mainnet });
-    const resolver = await provider.getResolver(ensName);
-    return resolver ?? ({} as Resolver);
+    return await getEnsResolver(getPublicClient({ chainId: ChainId.mainnet }), { name: ensName });
   } catch (e) {
-    return {} as Resolver;
+    return null;
   }
 };

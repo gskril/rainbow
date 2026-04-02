@@ -33,7 +33,6 @@ import {
 } from '../references';
 import { colors } from '@/styles';
 import labelhash from '@/utils/labelhash';
-import { encodeContenthash, isValidContenthash } from '@/utils/contenthash';
 import { ChainId } from '@/state/backendNetworks/types';
 
 export const ENS_SECONDS_WAIT = 60;
@@ -47,7 +46,6 @@ export enum ENSRegistrationTransactionType {
   RENEW = 'renew',
   SET_ADDR = 'setAddr',
   RECLAIM = 'reclaim',
-  SET_CONTENTHASH = 'setContenthash',
   SET_TEXT = 'setText',
   SET_NAME = 'setName',
   MULTICALL = 'multicall',
@@ -61,8 +59,6 @@ export enum ENS_RECORDS {
   name = 'name',
   displayName = 'me.rainbow.displayName',
   header = 'header',
-  content = 'content',
-  contenthash = 'contenthash',
   url = 'url',
   email = 'email',
   website = 'website',
@@ -352,24 +348,13 @@ export const textRecordFields = {
       validator: value => validateCoinRecordValue(value, ENS_RECORDS.DOGE),
     },
   },
-  [ENS_RECORDS.contenthash]: {
-    id: 'contenthash',
-    inputProps: {},
-    key: ENS_RECORDS.contenthash,
-    label: i18n.t(i18n.l.profiles.create.content),
-    placeholder: i18n.t(i18n.l.profiles.create.content_placeholder),
-    validation: {
-      message: i18n.t(i18n.l.profiles.create.invalid_content_hash),
-      validator: value => validateContentHashRecordValue(value),
-    },
-  },
+
 } as {
   [key in ENS_RECORDS]?: TextRecordField;
 };
 
 export const deprecatedTextRecordFields = {
   [ENS_RECORDS.displayName]: ENS_RECORDS.name,
-  [ENS_RECORDS.content]: ENS_RECORDS.contenthash,
 } as {
   [key in ENS_RECORDS]: ENS_RECORDS;
 };
@@ -431,12 +416,6 @@ const setupMulticallRecords = (name: string, records: ENSRegistrationRecords, re
 
   if (Boolean(ensAssociatedRecord) && typeof ensAssociatedRecord === 'string' && parseInt(ensAssociatedRecord, 16) !== 0) {
     data.push(resolver.encodeFunctionData('setAddr(bytes32,address)', [namehash, ensAssociatedRecord]));
-  }
-  if (typeof records.contenthash === 'string') {
-    // content hash address
-    const { encoded: encodedContentHash } = encodeContenthash(records.contenthash || '');
-    const contentHashAssociatedRecord = records.contenthash === '' ? Buffer.from('') : encodedContentHash;
-    data.push(resolver.encodeFunctionData('setContenthash', [namehash, contentHashAssociatedRecord]));
   }
   // coin addresses
   const coinAddressesAssociatedRecord = records.coinAddress;
@@ -576,15 +555,6 @@ const getENSExecutionDetails = async ({
       contract = await getENSPublicResolverContract(wallet, resolverAddress);
       break;
     }
-    case ENSRegistrationTransactionType.SET_CONTENTHASH: {
-      if (!name || !records || typeof records?.contenthash !== 'string') throw new Error('Bad arguments for contenthash');
-      const namehash = hash(name);
-      const { encoded: encodedContentHash } = encodeContenthash(records?.contenthash || '');
-      const contentHash = records.contenthash === '' ? Buffer.from('') : encodedContentHash;
-      args = [namehash, contentHash];
-      contract = await getENSPublicResolverContract(wallet, resolverAddress);
-      break;
-    }
   }
   return {
     contract,
@@ -634,15 +604,6 @@ const validateCoinRecordValue = (value: string, coin: string) => {
     formatsByName[coin].decoder(value);
     return true;
   } catch (e) {
-    return false;
-  }
-};
-
-const validateContentHashRecordValue = (value: string) => {
-  const { encoded, error: encodeError } = encodeContenthash(value);
-  if (!encodeError && encoded) {
-    return isValidContenthash(encoded);
-  } else {
     return false;
   }
 };

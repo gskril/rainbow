@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { createQueryKey, queryClient, type QueryFunctionArgs } from '@/react-query';
-import { getProvider } from '@/handlers/web3';
-import { ChainId } from '@/state/backendNetworks/types';
+import { getPublicClient } from '@/handlers/web3';
+import { getEnsAddress } from 'viem/ens';
 
 // Set a default stale time of 10 seconds so we don't over-fetch
 // (query will serve cached data & invalidate after 10s).
@@ -24,9 +24,7 @@ const ensAddressQueryKey = ({ name }: ENSAddressArgs) => createQueryKey('ensAddr
 // Query Function
 
 async function ensAddressQueryFunction({ queryKey: [{ name }] }: QueryFunctionArgs<typeof ensAddressQueryKey>) {
-  const provider = getProvider({ chainId: ChainId.mainnet });
-  const address = await provider.resolveName(name);
-  return address;
+  return getEnsAddress(getPublicClient(), { name });
 }
 
 // ///////////////////////////////////////////////

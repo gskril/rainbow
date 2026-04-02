@@ -13,10 +13,10 @@ export async function fetchENSResolver(name: string) {
   if (cachedResolver) {
     queryClient.setQueryData(ensResolverQueryKey(name), cachedResolver);
   }
-  const resolver = await fetchResolver(name);
+  const resolverAddress = await fetchResolver(name);
   const data = {
-    address: resolver?.address,
-    type: resolver?.address === ensPublicResolverAddress ? 'default' : 'custom',
+    address: resolverAddress ?? undefined,
+    type: resolverAddress === ensPublicResolverAddress ? 'default' : 'custom',
   };
   saveENSData('resolver', name, data);
   return data;

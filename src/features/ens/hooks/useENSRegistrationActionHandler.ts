@@ -293,7 +293,7 @@ const useENSRegistrationActionHandler: UseENSRegistrationActionHandler = ({ step
         return;
       }
 
-      const [nonce, changedRecords, resolver] = await Promise.all([
+      const [nonce, changedRecords, resolverAddress] = await Promise.all([
         getNextNonce({ chainId: ChainId.mainnet, address: accountAddress }),
         uploadRecordImages(registrationParameters.changedRecords, {
           avatar: avatarMetadata,
@@ -307,7 +307,7 @@ const useENSRegistrationActionHandler: UseENSRegistrationActionHandler = ({ step
         nonce,
         ownerAddress: accountAddress,
         records: changedRecords,
-        resolverAddress: resolver?.address as Hex,
+        resolverAddress: resolverAddress as Hex,
         setReverseRecord: sendReverseRecord,
       };
 

@@ -7,7 +7,9 @@ import { type Block, JsonRpcBatchProvider, StaticJsonRpcProvider, type Transacti
 import { parseEther } from '@ethersproject/units';
 import Resolution from '@unstoppabledomains/resolution';
 import { startsWith } from 'lodash';
-import { type Address, type Hex } from 'viem';
+import { createPublicClient, http, type Address, type Hex, type PublicClient } from 'viem';
+import { getEnsAddress } from 'viem/ens';
+import { mainnet } from 'viem/chains';
 import { AssetType } from '@/entities/assetTypes';
 import { type NewTransaction } from '@/entities/transactions';
 import { type ParsedAddressAsset } from '@/entities/tokens';
@@ -38,6 +40,40 @@ import { NftTokenType } from '@/graphql/__generated__/arc';
 export const chainsProviders = new Map<ChainId, StaticJsonRpcProvider>();
 
 export const chainsBatchProviders = new Map<ChainId, JsonRpcBatchProvider>();
+
+const chainsPublicClients = new Map<number, { client: PublicClient; url: string }>();
+
+/**
+ * @desc Returns a viem PublicClient for the given chain. Mirrors getProvider but
+ * returns a viem client so ENS actions (getEnsAddress, getEnsName, etc.) can use
+ * viem's built-in CCIP-Read support.
+ */
+export const getPublicClient = ({ chainId = ChainId.mainnet }: { chainId?: number } = {}): PublicClient => {
+  if (useConnectedToAnvilStore.getState().connectedToAnvil) {
+    return createPublicClient({
+      chain: chainAnvil,
+      transport: http(chainAnvil.rpcUrls.default.http[0]),
+    });
+  }
+
+  const cached = chainsPublicClients.get(chainId);
+  const chain = useBackendNetworksStore.getState().getDefaultChains()[chainId];
+  // For mainnet, the backend chain includes mainnet.contracts (ENS contract addresses) via
+  // transformBackendNetworkToChain. Fall back to viem's canonical mainnet if not found.
+  const resolvedChain = chain ?? mainnet;
+  const providerUrl = resolvedChain.rpcUrls?.default?.http?.[0];
+
+  if (cached?.url === providerUrl) {
+    return cached.client;
+  }
+
+  const client = createPublicClient({
+    chain: resolvedChain,
+    transport: http(providerUrl),
+  });
+  chainsPublicClients.set(chainId, { client, url: providerUrl });
+  return client;
+};
 
 /**
  * Creates an rpc endpoint for a given chain id using the Rainbow rpc proxy.
@@ -460,13 +496,9 @@ export const resolveUnstoppableDomain = async (domain: string): Promise<string |
 export const resolveNameOrAddress = async (nameOrAddress: string): Promise<string | null> => {
   if (!isHexString(nameOrAddress)) {
     if (isUnstoppableAddressFormat(nameOrAddress)) {
-      const resolvedAddress = await resolveUnstoppableDomain(nameOrAddress);
-      return resolvedAddress;
+      return resolveUnstoppableDomain(nameOrAddress);
     }
-    const p = getProvider({ chainId: ChainId.mainnet });
-    const resolvedAddress = await p?.resolveName(nameOrAddress);
-
-    return resolvedAddress;
+    return getEnsAddress(getPublicClient({ chainId: ChainId.mainnet }), { name: nameOrAddress });
   }
   return nameOrAddress;
 };

@@ -24,7 +24,7 @@ async function fetchENSProfile(name: string, { supportedRecordsOnly = true }: { 
     queryClient.setQueryData(queryKey(name, { supportedRecordsOnly }), cachedProfile);
   }
 
-  const [address, avatar, header, owner, { coinAddresses, contenthash, records }, { registration, registrant }, resolver] =
+  const [address, avatar, header, owner, { coinAddresses, records }, { registration, registrant }, resolver] =
     await Promise.all([
       fetchENSAddress({ name }),
       queryClient.fetchQuery(ensAvatarQueryKey(name), () => fetchENSAvatar(name)),
@@ -38,7 +38,6 @@ async function fetchENSProfile(name: string, { supportedRecordsOnly = true }: { 
   const profile = {
     address,
     coinAddresses,
-    contenthash,
     images: {
       avatar,
       header,

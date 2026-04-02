@@ -1,6 +1,5 @@
 import { isValidAddress } from 'ethereumjs-util';
 import * as i18n from '@/languages';
-import { keys } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, Keyboard, type TextInput } from 'react-native';
 import { useDispatch } from 'react-redux';
@@ -12,14 +11,14 @@ import { WrappedAlert as Alert } from '@/helpers/alert';
 import { analytics } from '@/analytics';
 import useExperimentalFlag, { PROFILES } from '@/config/experimentalHooks';
 import { fetchReverseRecord } from '@/features/ens/utils/handlers';
-import { getProvider, isValidBluetoothDeviceId, resolveUnstoppableDomain } from '@/handlers/web3';
+import { getPublicClient, isValidBluetoothDeviceId, resolveUnstoppableDomain } from '@/handlers/web3';
+import { getEnsAddress } from 'viem/ens';
 import { isENSAddressFormat, isUnstoppableAddressFormat, isValidWallet } from '@/helpers/validators';
 import Navigation, { useNavigation } from '@/navigation/Navigation';
 import Routes from '@/navigation/routesNames';
 import { sanitizeSeedPhrase } from '@/utils/formatters';
 import { deriveAccountFromWalletInput } from '@/utils/wallet';
 import { logger, RainbowError } from '@/logger';
-import { ChainId } from '@/state/backendNetworks/types';
 import { backupsStore } from '@/state/backups/backups';
 import { walletLoadingStore } from '@/state/walletLoading/walletLoading';
 import { WalletLoadingStates } from '@/helpers/walletLoadingStates';
@@ -141,9 +140,8 @@ export default function useImportingWallet({
       // Validate ENS
       if (isENSAddressFormat(input)) {
         try {
-          const provider = getProvider({ chainId: ChainId.mainnet });
           const [address, avatar] = await Promise.all([
-            provider.resolveName(input),
+            getEnsAddress(getPublicClient(), { name: input }),
             !avatarUrl && profilesEnabled && fetchENSAvatar(input, { swallowError: true }),
           ]);
           if (!address) {

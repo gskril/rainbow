@@ -488,7 +488,6 @@ export default function SendSheet() {
           clearRecords: ens.clearRecords,
           name: ensName,
           records: {
-            ...(ensProfile?.data?.contenthash ? { contenthash: ensProfile?.data?.contenthash } : {}),
             ...(ensProfile?.data?.records || {}),
             ...(ensProfile?.data?.coinAddresses || {}),
           },
@@ -637,7 +636,6 @@ export default function SendSheet() {
       currentProvider,
       ensName,
       ensProfile?.data?.coinAddresses,
-      ensProfile?.data?.contenthash,
       ensProfile?.data?.records,
       gasLimit,
       isENS,
